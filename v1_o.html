@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Barista FIRE Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+
+    #inputs {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    #chartContainer {
+      width: 800px;
+      height: 400px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Barista FIRE Calculator</h1>
+  <div id="inputs">
+    <label for="currentInvestment">Current Investment:</label>
+    <input type="number" id="currentInvestment" value="2000000">
+
+    <label for="expectedReturn">Expected Annual Return (%):</label>
+    <input type="number" id="expectedReturn" value="5">
+
+    <label for="monthlyInvestment">Monthly Investment:</label>
+    <input type="number" id="monthlyInvestment" value="60000">
+
+    <label for="retirementYears">Years to Retirement:</label>
+    <input type="number" id="retirementYears" value="30">
+
+    <label for="partTimeIncome">Annual Part-Time Income (Post-Retirement):</label>
+    <input type="number" id="partTimeIncome" value="360000">
+
+    <label for="annualExpense">Annual Expense (Post-Retirement):</label>
+    <input type="number" id="annualExpense" value="1000000">
+
+    <label for="withdrawRate">Withdraw Rate (%):</label>
+    <input type="number" id="withdrawRate" value="4">
+
+    <label for="inflationRate">Inflation Rate (%):</label>
+    <input type="number" id="inflationRate" value="3">
+  </div>
+  <button onclick="calculateAndDraw()">Calculate and Draw</button>
+  <div id="chartContainer">
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <script>
+    function calculateAndDraw() {
+      const currentInvestment = parseFloat(document.getElementById('currentInvestment').value);
+      const expectedReturn = parseFloat(document.getElementById('expectedReturn').value) / 100;
+      const monthlyInvestment = parseFloat(document.getElementById('monthlyInvestment').value);
+      const retirementYears = parseInt(document.getElementById('retirementYears').value);
+      const partTimeIncome = parseFloat(document.getElementById('partTimeIncome').value);
+      const annualExpense = parseFloat(document.getElementById('annualExpense').value);
+      const withdrawRate = parseFloat(document.getElementById('withdrawRate').value) / 100;
+      const inflationRate = parseFloat(document.getElementById('inflationRate').value) / 100;
+
+      const years = [];
+      const portfolioValues = [];
+      const withdrawAmounts = [];
+      const requiredPortfolios = [];
+
+      let currentPortfolio = currentInvestment;
+      let currentExpense = annualExpense;
+
+      for (let year = 0; year <= retirementYears + 20; ++year) {
+        years.push(year);
+        if (year <= retirementYears) {
+          currentPortfolio = currentPortfolio * (1 + expectedReturn) + monthlyInvestment * 12;
+          portfolioValues.push(currentPortfolio);
+          // requiredPortfolios.push(currentExpense / withdrawRate);
+          withdrawAmounts.push(0);
+        } else {
+          currentPortfolio = currentPortfolio * (1 + expectedReturn) - (currentExpense - partTimeIncome);
+          portfolioValues.push(currentPortfolio);
+          // requiredPortfolios.push(currentExpense / withdrawRate);
+          withdrawAmounts.push(currentExpense - partTimeIncome);
+          // currentExpense = currentExpense * (1 + inflationRate);
+        }
+        requiredPortfolios.push(currentExpense / withdrawRate);
+
+        // Annual expense will increase due to inflation.
+        currentExpense = currentExpense * (1 + inflationRate);
+      }
+      drawChart(years, portfolioValues, withdrawAmounts, requiredPortfolios, retirementYears);
+    }
+
+    function drawChart(years, portfolioValues, withdrawAmounts, requiredPortfolios, retirementYears) {
+      const ctx = document.getElementById('myChart').getContext('2d');
+      if (window.myLine) {
+        window.myLine.destroy();
+      }
+      window.myLine = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [
+            {
+              label: 'Portfolio Value',
+              data: portfolioValues,
+              borderColor: 'blue',
+              fill: false,
+              segment: {
+                borderColor: (ctx) => ctx.p0DataIndex < retirementYears ? 'blue' : 'magenta'
+              }
+            },
+            {
+              label: 'Annual Withdraw',
+              data: withdrawAmounts,
+              borderColor: 'green',
+              fill: false
+            },
+            {
+              label: "Required Portfolio",
+              data: requiredPortfolios,
+              borderColor: "red",
+              fill: false,
+              // segment: {
+              //   borderColor: (ctx) => ctx.p0DataIndex <= retirementYears ? 'red' : 'orange'
+              // }
+            }
+          ]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          },
+          plugins: {
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          hover: {
+            mode: 'nearest',
+            intersect: true
+          }
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>
