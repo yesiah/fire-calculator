@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Barista FIRE Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    body.dark-mode {
+      background-color: #121212;
+      color: #eee;
+    }
+
+    #inputs {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    #chartContainer {
+      width: 800px;
+      height: 400px;
+    }
+
+    .dark-mode input,
+    .dark-mode label,
+    .dark-mode button {
+      background-color: #333;
+      color: #eee;
+      border: 1px solid #555;
+    }
+
+    #themeToggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Barista FIRE Calculator</h1>
+  <button id="themeToggle">Toggle Dark Mode</button>
+  <div id="inputs">
+    <label for="currentInvestment">Current Investment:</label>
+    <input type="number" id="currentInvestment" value="2000000">
+
+    <label for="expectedReturn">Expected Annual Return (%):</label>
+    <input type="number" id="expectedReturn" value="5">
+
+    <label for="monthlyInvestment">Monthly Investment:</label>
+    <input type="number" id="monthlyInvestment" value="60000">
+
+    <label for="retirementYears">Years to Retirement:</label>
+    <input type="number" id="retirementYears" value="30">
+
+    <label for="partTimeIncome">Annual Part-Time Income (Post-Retirement):</label>
+    <input type="number" id="partTimeIncome" value="360000">
+
+    <label for="annualExpense">Annual Expense (Post-Retirement):</label>
+    <input type="number" id="annualExpense" value="1000000">
+
+    <label for="withdrawRate">Withdraw Rate (%):</label>
+    <input type="number" id="withdrawRate" value="4">
+
+    <label for="inflationRate">Inflation Rate (%):</label>
+    <input type="number" id="inflationRate" value="3">
+  </div>
+  <button onclick="calculateAndDraw()">Calculate and Draw</button>
+  <div id="chartContainer">
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <script>
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      if (document.body.classList.contains('dark-mode')) {
+        themeToggle.textContent = "Toggle Light Mode";
+      } else {
+        themeToggle.textContent = "Toggle Dark Mode";
+      }
+      if (window.myLine) {
+        calculateAndDraw(); //redraw chart in correct theme
+      }
+    });
+
+    function calculateAndDraw() {
+      const currentInvestment = parseFloat(document.getElementById('currentInvestment').value);
+      const expectedReturn = parseFloat(document.getElementById('expectedReturn').value) / 100;
+      const monthlyInvestment = parseFloat(document.getElementById('monthlyInvestment').value);
+      const retirementYears = parseInt(document.getElementById('retirementYears').value);
+      const partTimeIncome = parseFloat(document.getElementById('partTimeIncome').value);
+      const annualExpense = parseFloat(document.getElementById('annualExpense').value);
+      const withdrawRate = parseFloat(document.getElementById('withdrawRate').value) / 100;
+      const inflationRate = parseFloat(document.getElementById('inflationRate').value) / 100;
+
+      const years = [];
+      const portfolioValues = [];
+      const withdrawAmounts = [];
+      const requiredPortfolios = [];
+
+      let currentPortfolio = currentInvestment;
+      let currentExpense = annualExpense;
+
+      for (let year = 0; year <= retirementYears + 20; ++year) {
+        years.push(year);
+        if (year <= retirementYears) {
+          currentPortfolio = currentPortfolio * (1 + expectedReturn) + monthlyInvestment * 12;
+          portfolioValues.push(currentPortfolio);
+          withdrawAmounts.push(0);
+        } else {
+          currentPortfolio = currentPortfolio * (1 + expectedReturn) - (currentExpense - partTimeIncome);
+          portfolioValues.push(currentPortfolio);
+          withdrawAmounts.push(currentExpense - partTimeIncome);
+        }
+        requiredPortfolios.push(currentExpense / withdrawRate);
+        currentExpense = currentExpense * (1 + inflationRate);
+      }
+      drawChart(years, portfolioValues, withdrawAmounts, requiredPortfolios, retirementYears);
+    }
+
+    function drawChart(years, portfolioValues, withdrawAmounts, requiredPortfolios, retirementYears) {
+      const ctx = document.getElementById('myChart').getContext('2d');
+      if (window.myLine) {
+        window.myLine.destroy();
+      }
+      const isDarkMode = document.body.classList.contains('dark-mode');
+      window.myLine = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [{
+            label: 'Portfolio Value',
+            data: portfolioValues,
+            borderColor: isDarkMode ? '#6495ED' : 'blue',
+            fill: false,
+            segment: {
+              borderColor: (ctx) => ctx.p0DataIndex < retirementYears ? (isDarkMode ? '#6495ED' : 'blue') : (isDarkMode ? '#BA55D3' : 'magenta')
+            }
+          },
+          {
+            label: 'Annual Withdraw',
+            data: withdrawAmounts,
+            borderColor: isDarkMode ? '#90EE90' : 'green',
+            fill: false
+          },
+          {
+            label: "Required Portfolio",
+            data: requiredPortfolios,
+            borderColor: isDarkMode ? '#FF4500' : 'red',
+            fill: false,
+          }
+          ]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: isDarkMode ? '#555' : '#ccc'
+              },
+              ticks: {
+                color: isDarkMode ? '#eee' : '#333'
+              }
+            },
+            x: {
+              grid: {
+                color: isDarkMode ? '#555' : '#ccc'
+              },
+              ticks: {
+                color: isDarkMode ? '#eee' : '#333'
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: isDarkMode ? '#333' : 'rgba(0,0,0,0.8)',
+              titleColor: isDarkMode ? '#eee' : '#fff',
+              bodyColor: isDarkMode ? '#eee' : '#fff',
+              borderColor: isDarkMode ? '#555' : '#ccc',
+              borderWidth: 1
+            },
+            legend: {
+              labels: {
+                color: isDarkMode ? '#eee' : '#333'
+              }
+            }
+          },
+          hover: {
+            mode: 'nearest',
+            intersect: true
+          }
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>
